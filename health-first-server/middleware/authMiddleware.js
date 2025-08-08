@@ -128,6 +128,14 @@ class AuthMiddleware {
   }
 
   /**
+   * Provider authorization middleware
+   * Specifically for provider-only endpoints
+   */
+  authorizeProvider() {
+    return this.authorize('provider', true);
+  }
+
+  /**
    * Optional authentication middleware
    * Similar to authenticate but doesn't require token
    * Useful for endpoints that can work with or without authentication
