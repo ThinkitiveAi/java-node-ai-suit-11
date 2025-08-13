@@ -1,300 +1,385 @@
-# Health First Server - Provider Registration API
+# Health First Server - Provider Availability Module
 
-A secure and comprehensive Express.js backend API for healthcare provider registration with robust validation, authentication, and database support.
+A comprehensive healthcare provider availability management system with advanced timezone handling, recurring slot generation, and patient search functionality.
 
 ## 🚀 Features
 
-- **Secure Provider Registration** with comprehensive validation
-- **Multi-Database Support** (MySQL & PostgreSQL)
-- **Password Security** with bcrypt hashing (12 salt rounds)
-- **Input Sanitization** to prevent injection attacks
-- **Rate Limiting** for API protection
-- **Comprehensive Error Handling** with custom error classes
-- **Unit Testing** with Jest and Supertest
-- **Health Check Endpoints**
-- **CORS Configuration** for cross-origin requests
+- **Provider Availability Management**: Create, update, and delete availability slots
+- **Recurring Slots**: Support for daily, weekly, and monthly recurring availability
+- **Timezone Handling**: Automatic UTC conversion and local time display
+- **Conflict Prevention**: Prevents overlapping time slots for the same provider
+- **Patient Search**: Advanced search functionality for available slots
+- **Appointment Booking**: Book and cancel appointment slots
+- **Statistics & Analytics**: Comprehensive availability statistics
 
-## 📋 Prerequisites
+## 🏗️ Architecture
 
-- Node.js (v16 or higher)
-- MySQL or PostgreSQL database
-- npm or yarn package manager
-
-## 🛠️ Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd health-first-server
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Environment Configuration**
-   ```bash
-   cp env.example .env
-   ```
-   
-   Edit `.env` file with your database credentials:
-   ```env
-   # Database Configuration
-   DB_TYPE=mysql  # or postgresql
-   DB_HOST=localhost
-   DB_PORT=3306   # 5432 for PostgreSQL
-   DB_NAME=health_first
-   DB_USER=your_username
-   DB_PASSWORD=your_password
-   ```
-
-4. **Database Setup**
-   - Create a database named `health_first`
-   - Tables will be automatically created on first run
-
-## 🚀 Running the Application
-
-### Development Mode
-```bash
-npm run dev
+```
+├── models/
+│   ├── ProviderAvailability.js    # Main availability model
+│   ├── AppointmentSlot.js         # Individual appointment slots
+│   ├── Provider.js               # Provider information
+│   └── Patient.js                # Patient information
+├── routes/
+│   ├── providerAvailabilityRoutes.js  # Provider availability endpoints
+│   └── availabilitySearchRoutes.js    # Patient search endpoints
+├── controllers/
+│   └── providerAvailabilityController.js  # Business logic
+├── services/
+│   └── providerAvailabilityService.js     # Core business logic
+├── repositories/
+│   └── providerAvailabilityRepository.js  # Data access layer
+├── utils/
+│   └── timezoneUtils.js          # Timezone conversion utilities
+└── tests/
+    └── providerAvailability.test.js       # Comprehensive test suite
 ```
 
-### Production Mode
-```bash
-npm start
-```
+## 📋 API Endpoints
 
-### Running Tests
-```bash
-npm test
-```
+### Provider Availability Management
 
-### Watch Mode for Tests
-```bash
-npm run test:watch
-```
-
-## 📚 API Documentation
-
-### Base URL
-```
-http://localhost:3000/api/v1
-```
-
-### Health Check
+#### Create Availability
 ```http
-GET /health
+POST /api/v1/provider/availability
+Authorization: Bearer <provider_token>
+Content-Type: application/json
+
+{
+  "date": "2024-12-15",
+  "start_time": "09:00",
+  "end_time": "17:00",
+  "timezone": "America/New_York",
+  "slot_duration": 30,
+  "break_duration": 15,
+  "is_recurring": true,
+  "recurrence_pattern": "weekly",
+  "recurrence_end_date": "2025-01-15",
+  "appointment_type": "consultation",
+  "location": {
+    "type": "clinic",
+    "address": "123 Medical Center Dr, New York, NY 10001",
+    "room_number": "Room 205"
+  },
+  "pricing": {
+    "base_fee": 150.00,
+    "insurance_accepted": true,
+    "currency": "USD"
+  },
+  "special_requirements": ["fasting_required", "bring_insurance_card"],
+  "notes": "Standard consultation slots"
+}
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "message": "Availability slots created successfully",
+  "data": {
+    "availability_id": "uuid-here",
+    "slots_created": 32,
+    "date_range": {
+      "start": "2024-12-15",
+      "end": "2025-01-15"
+    },
+    "total_appointments_available": 224
+  }
+}
+```
+
+#### Get Provider Availability
+```http
+GET /api/v1/provider/:provider_id/availability?start_date=2024-12-15&end_date=2024-12-20&status=available&appointment_type=consultation&timezone=America/New_York
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "provider_id": "uuid-here",
+    "availability_summary": {
+      "total_slots": 48,
+      "available_slots": 32,
+      "booked_slots": 14,
+      "cancelled_slots": 2
+    },
+    "availability": [
+      {
+        "date": "2024-12-15",
+        "slots": [
+          {
+            "slot_id": "uuid-here",
+            "start_time": "09:00",
+            "end_time": "09:30",
+            "status": "available",
+            "appointment_type": "consultation",
+            "location": {
+              "type": "clinic",
+              "address": "123 Medical Center Dr",
+              "room_number": "Room 205"
+            },
+            "pricing": {
+              "base_fee": 150.00,
+              "insurance_accepted": true
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Update Availability
+```http
+PUT /api/v1/provider/availability/:slot_id
+Authorization: Bearer <provider_token>
+Content-Type: application/json
+
+{
+  "start_time": "10:00",
+  "end_time": "10:30",
+  "status": "available",
+  "notes": "Updated consultation time",
+  "pricing": {
+    "base_fee": 175.00
+  }
+}
+```
+
+#### Delete Availability
+```http
+DELETE /api/v1/provider/availability/:slot_id?delete_recurring=true&reason=Holiday
+Authorization: Bearer <provider_token>
+```
+
+### Patient Search & Booking
+
+#### Search Available Slots
+```http
+GET /api/v1/availability/search?date=2024-12-15&specialization=cardiology&location=New York&appointment_type=consultation&insurance_accepted=true&max_price=200&timezone=America/New_York&available_only=true
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "search_criteria": {
+      "date": "2024-12-15",
+      "specialization": "cardiology",
+      "location": "New York"
+    },
+    "total_results": 15,
+    "results": [
+      {
+        "provider": {
+          "id": "uuid-here",
+          "name": "Dr. John Doe",
+          "specialization": "Cardiology",
+          "years_of_experience": 15,
+          "rating": 4.8,
+          "clinic_address": "123 Medical Center Dr, New York, NY"
+        },
+        "available_slots": [
+          {
+            "slot_id": "uuid-here",
+            "date": "2024-12-15",
+            "start_time": "10:00",
+            "end_time": "10:30",
+            "appointment_type": "consultation",
+            "location": {
+              "type": "clinic",
+              "address": "123 Medical Center Dr",
+              "room_number": "Room 205"
+            },
+            "pricing": {
+              "base_fee": 150.00,
+              "insurance_accepted": true,
+              "currency": "USD"
+            },
+            "special_requirements": ["bring_insurance_card"]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+#### Book Appointment Slot
+```http
+POST /api/v1/availability/:slot_id/book
+Content-Type: application/json
+
+{
+  "patient_id": "uuid-here",
+  "notes": "Patient prefers morning appointments"
+}
+```
+
+#### Cancel Appointment
+```http
+POST /api/v1/availability/:slot_id/cancel
+Content-Type: application/json
+
+{
+  "reason": "Patient requested cancellation"
+}
+```
+
+#### Check Slot Availability
+```http
+GET /api/v1/availability/:slot_id/check
+```
+
+## 🕐 Timezone Handling
+
+The system automatically handles timezone conversions:
+
+- **Storage**: All times are stored in UTC in the database
+- **Display**: Times are converted to the provider's local timezone for display
+- **Validation**: Supports major timezones including DST transitions
+- **Conversion**: Automatic local-to-UTC and UTC-to-local conversion
+
+### Supported Timezones
+- `America/New_York` (EST/EDT)
+- `America/Chicago` (CST/CDT)
+- `America/Denver` (MST/MDT)
+- `America/Los_Angeles` (PST/PDT)
+- `Europe/London` (GMT/BST)
+- `Europe/Paris` (CET/CEST)
+- `Asia/Tokyo` (JST)
+- `Asia/Shanghai` (CST)
+- `Asia/Kolkata` (IST)
+- `Australia/Sydney` (AEST/AEDT)
+- `UTC`
+
+## 🔄 Recurring Availability
+
+### Patterns
+- **Daily**: Creates slots for every day
+- **Weekly**: Creates slots for the same day each week
+- **Monthly**: Creates slots for the same date each month
+
+### Example
+```json
+{
+  "is_recurring": true,
+  "recurrence_pattern": "weekly",
+  "recurrence_end_date": "2025-01-15",
+  "slot_duration": 30,
+  "break_duration": 15
+}
+```
+
+## 🛡️ Conflict Prevention
+
+The system automatically prevents:
+- Overlapping time slots for the same provider
+- Double-booking of appointment slots
+- Deletion of slots with existing appointments
+- Invalid time ranges (end_time ≤ start_time)
+
+## 📊 Statistics & Analytics
+
+### Provider Statistics
+```http
+GET /api/v1/provider/availability/:provider_id/statistics?start_date=2024-12-01&end_date=2024-12-31
 ```
 
 **Response:**
 ```json
 {
   "success": true,
-  "message": "Health First Server is running",
-  "timestamp": "2024-01-01T00:00:00.000Z"
-}
-```
-
-### Provider Registration
-
-#### Register New Provider
-```http
-POST /provider/register
-```
-
-**Request Body:**
-```json
-{
-  "first_name": "John",
-  "last_name": "Doe",
-  "email": "john.doe@clinic.com",
-  "phone_number": "+1234567890",
-  "password": "SecurePassword123!",
-  "confirm_password": "SecurePassword123!",
-  "specialization": "Cardiology",
-  "license_number": "MD123456789",
-  "years_of_experience": 10,
-  "clinic_address": {
-    "street": "123 Medical Center Dr",
-    "city": "New York",
-    "state": "NY",
-    "zip": "10001"
-  }
-}
-```
-
-**Success Response (201):**
-```json
-{
-  "success": true,
-  "message": "Provider registered successfully. Verification email sent.",
   "data": {
-    "provider_id": "uuid-here",
-    "email": "john.doe@clinic.com",
-    "verification_status": "pending"
+    "totalSlots": 120,
+    "availableSlots": 85,
+    "bookedSlots": 30,
+    "totalAppointments": 35,
+    "totalRevenue": 5250.00
   }
 }
 ```
-
-**Error Response (400):**
-```json
-{
-  "success": false,
-  "message": "Validation failed",
-  "errors": [
-    {
-      "field": "email",
-      "message": "Please provide a valid email address",
-      "value": "invalid-email"
-    }
-  ]
-}
-```
-
-#### Get Provider by ID
-```http
-GET /provider/:id
-```
-
-#### Get All Providers (with pagination)
-```http
-GET /provider?page=1&limit=10&status=pending
-```
-
-#### Update Provider Verification Status
-```http
-PATCH /provider/:id/verify
-```
-
-**Request Body:**
-```json
-{
-  "status": "verified"
-}
-```
-
-## 🔒 Validation Rules
-
-### Required Fields
-- `first_name` (2-50 characters, letters and spaces only)
-- `last_name` (2-50 characters, letters and spaces only)
-- `email` (valid email format, unique)
-- `phone_number` (international format: +1234567890, unique)
-- `password` (8+ characters, uppercase, lowercase, number, special character)
-- `confirm_password` (must match password)
-- `specialization` (3-100 characters)
-- `license_number` (5-20 characters, alphanumeric, unique)
-- `years_of_experience` (0-50 years)
-- `clinic_address` (complete address object)
-
-### Address Validation
-- `street` (max 200 characters)
-- `city` (max 100 characters, letters and spaces only)
-- `state` (max 50 characters, letters and spaces only)
-- `zip` (valid US ZIP format: 12345 or 12345-6789)
-
-## 🏗️ Project Structure
-
-```
-health-first-server/
-├── config/
-│   └── database.js          # Database configuration
-├── controllers/
-│   └── providerController.js # Request handling
-├── middleware/
-│   └── errorHandler.js      # Global error handling
-├── models/
-│   └── Provider.js          # Data model and validation
-├── repositories/
-│   └── providerRepository.js # Database operations
-├── routes/
-│   └── providerRoutes.js    # API routes
-├── services/
-│   └── providerService.js   # Business logic
-├── tests/
-│   └── provider.test.js     # Unit tests
-├── utils/
-│   └── errors.js            # Custom error classes
-├── server.js                # Express server setup
-├── package.json
-└── README.md
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | 3000 |
-| `NODE_ENV` | Environment | development |
-| `DB_TYPE` | Database type (mysql/postgresql) | mysql |
-| `DB_HOST` | Database host | localhost |
-| `DB_PORT` | Database port | 3306/5432 |
-| `DB_NAME` | Database name | health_first |
-| `DB_USER` | Database user | root/postgres |
-| `DB_PASSWORD` | Database password | - |
-| `ALLOWED_ORIGINS` | CORS origins | http://localhost:3000 |
 
 ## 🧪 Testing
 
-The application includes comprehensive unit tests covering:
+Run the comprehensive test suite:
 
-- Provider registration with valid data
-- Validation error handling
-- Duplicate email/phone/license detection
-- Password hashing and verification
-- Model validation
-- API endpoint testing
-
-Run tests:
 ```bash
+# Run all tests
 npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run specific test file
+npm test tests/providerAvailability.test.js
 ```
 
-## 🔐 Security Features
+### Test Coverage
+- ✅ Availability creation (single & recurring)
+- ✅ Timezone handling and UTC conversion
+- ✅ Conflict detection and prevention
+- ✅ Patient search functionality
+- ✅ Appointment booking and cancellation
+- ✅ Route conflict resolution
+- ✅ Input validation and sanitization
 
-- **Password Hashing**: bcrypt with 12 salt rounds
-- **Input Sanitization**: Prevents injection attacks
-- **Rate Limiting**: 100 requests per 15 minutes per IP
-- **CORS Protection**: Configurable allowed origins
-- **Helmet**: Security headers
-- **Validation**: Comprehensive input validation
-- **Error Handling**: Secure error responses
+## 🚀 Getting Started
 
-## 🚨 Error Handling
+### Prerequisites
+- Node.js >= 16.0.0
+- MongoDB
+- npm or yarn
 
-The API uses custom error classes for better error categorization:
+### Installation
+```bash
+# Install dependencies
+npm install
 
-- `ValidationError` (400) - Input validation failures
-- `DuplicateError` (409) - Duplicate entries
-- `DatabaseError` (500) - Database operation failures
-- `AuthenticationError` (401) - Authentication failures
-- `AuthorizationError` (403) - Authorization failures
-- `NotFoundError` (404) - Resource not found
-- `RateLimitError` (429) - Rate limit exceeded
+# Set environment variables
+cp env.example .env
 
-## 📝 Database Schema
+# Start the server
+npm start
 
-### Providers Table
+# Development mode
+npm run dev
+```
 
-| Column | Type | Constraints |
-|--------|------|-------------|
-| `id` | VARCHAR(36)/UUID | PRIMARY KEY |
-| `first_name` | VARCHAR(50) | NOT NULL |
-| `last_name` | VARCHAR(50) | NOT NULL |
-| `email` | VARCHAR(255) | UNIQUE, NOT NULL |
-| `phone_number` | VARCHAR(20) | UNIQUE, NOT NULL |
-| `password_hash` | VARCHAR(255) | NOT NULL |
-| `specialization` | VARCHAR(100) | NOT NULL |
-| `license_number` | VARCHAR(20) | UNIQUE, NOT NULL |
-| `years_of_experience` | INT | NOT NULL |
-| `clinic_address` | JSON/JSONB | NOT NULL |
-| `verification_status` | ENUM/VARCHAR | DEFAULT 'pending' |
-| `is_active` | BOOLEAN | DEFAULT TRUE |
-| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
-| `updated_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP |
+### Environment Variables
+```env
+PORT=3000
+MONGODB_URI=mongodb://localhost:27017/health_first
+JWT_SECRET=your-secret-key
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:3000
+```
+
+## 📝 API Documentation
+
+- **Health Check**: `GET /health`
+- **Provider Availability**: `http://localhost:3000/api/v1/provider/availability`
+- **Patient Search**: `http://localhost:3000/api/v1/availability/search`
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+1. **Route Conflict Error**: Fixed by reordering routes in `providerRoutes.js`
+2. **Timezone Validation**: Ensure timezone is in the supported list
+3. **MongoDB Connection**: Check database connection string and network access
+
+### Error Codes
+- `400`: Bad Request (validation errors)
+- `401`: Unauthorized (missing/invalid token)
+- `403`: Forbidden (insufficient permissions)
+- `404`: Not Found (resource doesn't exist)
+- `409`: Conflict (time slot conflicts, booking issues)
+- `500`: Internal Server Error (database/server issues)
 
 ## 🤝 Contributing
 
@@ -302,8 +387,7 @@ The API uses custom error classes for better error categorization:
 2. Create a feature branch
 3. Make your changes
 4. Add tests for new functionality
-5. Run the test suite
-6. Submit a pull request
+5. Submit a pull request
 
 ## 📄 License
 
@@ -311,4 +395,7 @@ This project is licensed under the MIT License.
 
 ## 🆘 Support
 
-For support and questions, please open an issue in the repository. 
+For support and questions:
+- Create an issue in the repository
+- Check the troubleshooting section
+- Review the test files for usage examples 

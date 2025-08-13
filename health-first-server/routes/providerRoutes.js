@@ -147,14 +147,23 @@ router.post('/register',
 );
 
 /**
- * @route   GET /api/v1/provider/:id
- * @desc    Get provider by ID
+ * @route   GET /api/v1/provider/search
+ * @desc    Search providers
  * @access  Public
  */
-router.get('/:id', async (req, res, next) => {
+router.get('/search', async (req, res, next) => {
   try {
-    const provider = await providerController.getProviderById(req.params.id);
-    res.json(provider);
+    const searchCriteria = {
+      name: req.query.name,
+      specialization: req.query.specialization,
+      verification_status: req.query.verification_status
+    };
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const result = await providerController.searchProviders(searchCriteria, page, limit);
+    res.json(result);
   } catch (error) {
     next(error);
   }
@@ -198,29 +207,6 @@ router.put('/:id/verify', async (req, res, next) => {
 });
 
 /**
- * @route   GET /api/v1/provider/search
- * @desc    Search providers
- * @access  Public
- */
-router.get('/search', async (req, res, next) => {
-  try {
-    const searchCriteria = {
-      name: req.query.name,
-      specialization: req.query.specialization,
-      verification_status: req.query.verification_status
-    };
-
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-
-    const result = await providerController.searchProviders(searchCriteria, page, limit);
-    res.json(result);
-  } catch (error) {
-    next(error);
-  }
-});
-
-/**
  * @route   DELETE /api/v1/provider/:id
  * @desc    Delete provider
  * @access  Public (should be protected in production)
@@ -229,6 +215,20 @@ router.delete('/:id', async (req, res, next) => {
   try {
     const result = await providerController.deleteProvider(req.params.id);
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * @route   GET /api/v1/provider/:id
+ * @desc    Get provider by ID
+ * @access  Public
+ */
+router.get('/:id', async (req, res, next) => {
+  try {
+    const provider = await providerController.getProviderById(req.params.id);
+    res.json(provider);
   } catch (error) {
     next(error);
   }

@@ -100,8 +100,8 @@ const validateAvailabilityCreation = [
 
   body('notes')
     .optional()
-    .isLength({ max: 1000 })
-    .withMessage('Notes cannot exceed 1000 characters')
+    .isLength({ max: 500 })
+    .withMessage('Notes cannot exceed 500 characters')
 ];
 
 // Validation middleware for availability update
@@ -147,25 +147,20 @@ const validateSearchQuery = [
     .isISO8601()
     .withMessage('End date must be a valid ISO date'),
 
+  query('status')
+    .optional()
+    .isIn(['available', 'booked', 'cancelled', 'blocked'])
+    .withMessage('Invalid status'),
+
   query('appointment_type')
     .optional()
     .isIn(['consultation', 'follow_up', 'emergency', 'telemedicine'])
     .withMessage('Invalid appointment type'),
 
-  query('location_type')
+  query('timezone')
     .optional()
-    .isIn(['clinic', 'hospital', 'telemedicine', 'home_visit'])
-    .withMessage('Invalid location type'),
-
-  query('insurance_accepted')
-    .optional()
-    .isIn(['true', 'false'])
-    .withMessage('Insurance accepted must be true or false'),
-
-  query('max_price')
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage('Max price must be a positive number'),
+    .notEmpty()
+    .withMessage('Timezone cannot be empty'),
 
   query('page')
     .optional()
@@ -175,17 +170,7 @@ const validateSearchQuery = [
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-
-  query('sort_by')
-    .optional()
-    .isIn(['date', 'start_time', 'pricing.base_fee'])
-    .withMessage('Invalid sort field'),
-
-  query('sort_order')
-    .optional()
-    .isIn(['asc', 'desc'])
-    .withMessage('Sort order must be asc or desc')
+    .withMessage('Limit must be between 1 and 100')
 ];
 
 // Routes
@@ -201,6 +186,17 @@ router.post('/',
   validateAvailabilityCreation,
   sanitizeInput,
   providerAvailabilityController.createAvailability.bind(providerAvailabilityController)
+);
+
+/**
+ * @route   GET /api/v1/provider/:provider_id/availability
+ * @desc    Get availability by provider ID (Public endpoint)
+ * @access  Public
+ */
+router.get('/provider/:provider_id',
+  validateSearchQuery,
+  sanitizeInput,
+  providerAvailabilityController.getAvailabilityByProviderId.bind(providerAvailabilityController)
 );
 
 /**
@@ -236,17 +232,6 @@ router.get('/me/statistics',
 router.get('/:id',
   sanitizeInput,
   providerAvailabilityController.getAvailabilityById.bind(providerAvailabilityController)
-);
-
-/**
- * @route   GET /api/v1/provider/availability/provider/:provider_id
- * @desc    Get availability by provider ID
- * @access  Public
- */
-router.get('/provider/:provider_id',
-  validateSearchQuery,
-  sanitizeInput,
-  providerAvailabilityController.getAvailabilityByProviderId.bind(providerAvailabilityController)
 );
 
 /**

@@ -8,6 +8,11 @@ const providerAvailabilityController = new ProviderAvailabilityController();
 
 // Validation middleware for search queries
 const validateSearchQuery = [
+  query('date')
+    .optional()
+    .isISO8601()
+    .withMessage('Date must be a valid ISO date'),
+
   query('start_date')
     .optional()
     .isISO8601()
@@ -18,15 +23,20 @@ const validateSearchQuery = [
     .isISO8601()
     .withMessage('End date must be a valid ISO date'),
 
+  query('specialization')
+    .optional()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Specialization must be between 1 and 100 characters'),
+
+  query('location')
+    .optional()
+    .isLength({ min: 1, max: 200 })
+    .withMessage('Location must be between 1 and 200 characters'),
+
   query('appointment_type')
     .optional()
     .isIn(['consultation', 'follow_up', 'emergency', 'telemedicine'])
     .withMessage('Invalid appointment type'),
-
-  query('location_type')
-    .optional()
-    .isIn(['clinic', 'hospital', 'telemedicine', 'home_visit'])
-    .withMessage('Invalid location type'),
 
   query('insurance_accepted')
     .optional()
@@ -56,17 +66,7 @@ const validateSearchQuery = [
   query('limit')
     .optional()
     .isInt({ min: 1, max: 100 })
-    .withMessage('Limit must be between 1 and 100'),
-
-  query('sort_by')
-    .optional()
-    .isIn(['date', 'start_time', 'pricing.base_fee'])
-    .withMessage('Invalid sort field'),
-
-  query('sort_order')
-    .optional()
-    .isIn(['asc', 'desc'])
-    .withMessage('Sort order must be asc or desc')
+    .withMessage('Limit must be between 1 and 100')
 ];
 
 // Routes

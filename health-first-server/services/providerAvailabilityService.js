@@ -1,6 +1,7 @@
 const ProviderAvailabilityRepository = require('../repositories/providerAvailabilityRepository');
 const { ValidationError, ConflictError, NotFoundError, DatabaseError } = require('../utils/errors');
 const { providerAvailabilityValidationSchema } = require('../models/ProviderAvailability');
+const { generateTimeSlots } = require('../utils/timezoneUtils');
 
 class ProviderAvailabilityService {
   constructor() {
@@ -36,13 +37,22 @@ class ProviderAvailabilityService {
       if (value.is_recurring) {
         const slots = await this.providerAvailabilityRepository.generateRecurringSlots(value);
         
+        // Calculate total appointments available
+        const totalAppointments = slots.reduce((total, slot) => {
+          return total + slot.max_appointments_per_slot;
+        }, 0);
+
         return {
           success: true,
-          message: `Created ${slots.length} recurring availability slots`,
+          message: 'Availability slots created successfully',
           data: {
+            availability_id: slots[0]?._id || 'generated',
             slots_created: slots.length,
-            pattern: value.recurrence_pattern,
-            end_date: value.recurrence_end_date
+            date_range: {
+              start: value.date.toISOString().split('T')[0],
+              end: value.recurrence_end_date.toISOString().split('T')[0]
+            },
+            total_appointments_available: totalAppointments
           }
         };
       } else {
@@ -94,7 +104,7 @@ class ProviderAvailabilityService {
    */
   async getAvailabilityByProviderId(providerId, options = {}) {
     try {
-      const { page = 1, limit = 50, startDate, endDate, status, appointmentType } = options;
+      const { page = 1, limit = 50, startDate, endDate, status, appointmentType, timezone } = options;
       
       const availability = await this.providerAvailabilityRepository.findByProviderId(providerId, {
         startDate,
@@ -103,21 +113,23 @@ class ProviderAvailabilityService {
         appointmentType
       });
 
+      // Group availability by date
+      const availabilityByDate = this.groupAvailabilityByDate(availability, timezone);
+
       const total = availability.length;
       const startIndex = (page - 1) * limit;
       const endIndex = startIndex + limit;
-      const paginatedAvailability = availability.slice(startIndex, endIndex);
+      const paginatedAvailability = availabilityByDate.slice(startIndex, endIndex);
+
+      // Calculate summary statistics
+      const summary = this.calculateAvailabilitySummary(availability);
 
       return {
         success: true,
         data: {
-          availability: paginatedAvailability,
-          pagination: {
-            page,
-            limit,
-            total,
-            pages: Math.ceil(total / limit)
-          }
+          provider_id: providerId,
+          availability_summary: summary,
+          availability: paginatedAvailability
         }
       };
     } catch (error) {
@@ -184,9 +196,20 @@ class ProviderAvailabilityService {
     try {
       const result = await this.providerAvailabilityRepository.search(searchCriteria, options);
 
+      // Format results to match requirements
+      const formattedResults = this.formatSearchResults(result.availability);
+
       return {
         success: true,
-        data: result
+        data: {
+          search_criteria: {
+            date: searchCriteria.startDate,
+            specialization: searchCriteria.specialization,
+            location: searchCriteria.location
+          },
+          total_results: result.availability.length,
+          results: formattedResults
+        }
       };
     } catch (error) {
       throw new DatabaseError(`Failed to search availability: ${error.message}`);
@@ -356,6 +379,117 @@ class ProviderAvailabilityService {
         errors: { general: ['Validation failed'] }
       };
     }
+  }
+
+  /**
+   * Group availability by date for response formatting
+   * @param {Array} availability - Array of availability objects
+   * @param {string} timezone - Target timezone for display
+   * @returns {Array} Grouped availability
+   */
+  groupAvailabilityByDate(availability, timezone) {
+    const grouped = {};
+    
+    availability.forEach(avail => {
+      const dateKey = avail.date.toISOString().split('T')[0];
+      
+      if (!grouped[dateKey]) {
+        grouped[dateKey] = {
+          date: dateKey,
+          slots: []
+        };
+      }
+
+      // Create slot object
+      const slot = {
+        slot_id: avail._id,
+        start_time: avail.local_start_time || avail.start_time,
+        end_time: avail.local_end_time || avail.end_time,
+        status: avail.status,
+        appointment_type: avail.appointment_type,
+        location: avail.location,
+        pricing: avail.pricing
+      };
+
+      grouped[dateKey].slots.push(slot);
+    });
+
+    return Object.values(grouped);
+  }
+
+  /**
+   * Calculate availability summary statistics
+   * @param {Array} availability - Array of availability objects
+   * @returns {Object} Summary statistics
+   */
+  calculateAvailabilitySummary(availability) {
+    let totalSlots = 0;
+    let availableSlots = 0;
+    let bookedSlots = 0;
+    let cancelledSlots = 0;
+
+    availability.forEach(avail => {
+      totalSlots++;
+      
+      if (avail.status === 'available' && avail.current_appointments < avail.max_appointments_per_slot) {
+        availableSlots++;
+      } else if (avail.status === 'booked') {
+        bookedSlots++;
+      } else if (avail.status === 'cancelled') {
+        cancelledSlots++;
+      }
+    });
+
+    return {
+      total_slots: totalSlots,
+      available_slots: availableSlots,
+      booked_slots: bookedSlots,
+      cancelled_slots: cancelledSlots
+    };
+  }
+
+  /**
+   * Format search results to match requirements
+   * @param {Array} availability - Array of availability objects
+   * @returns {Array} Formatted results
+   */
+  formatSearchResults(availability) {
+    const providerMap = new Map();
+
+    availability.forEach(avail => {
+      const providerId = avail.provider_id._id || avail.provider_id;
+      
+      if (!providerMap.has(providerId)) {
+        providerMap.set(providerId, {
+          provider: {
+            id: providerId,
+            name: `${avail.provider_id.first_name || ''} ${avail.provider_id.last_name || ''}`.trim(),
+            specialization: avail.provider_id.specialization || 'General',
+            years_of_experience: avail.provider_id.years_of_experience || 0,
+            rating: avail.provider_id.rating || 0,
+            clinic_address: avail.location?.address || 'Address not specified'
+          },
+          available_slots: []
+        });
+      }
+
+      const provider = providerMap.get(providerId);
+      
+      const slot = {
+        slot_id: avail._id,
+        date: avail.date.toISOString().split('T')[0],
+        start_time: avail.local_start_time || avail.start_time,
+        end_time: avail.local_end_time || avail.end_time,
+        appointment_type: avail.appointment_type,
+        location: avail.location,
+        pricing: avail.pricing,
+        special_requirements: avail.special_requirements || []
+      };
+
+      provider.available_slots.push(slot);
+    });
+
+    return Array.from(providerMap.values());
   }
 }
 

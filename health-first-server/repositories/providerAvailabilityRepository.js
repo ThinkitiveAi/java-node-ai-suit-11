@@ -1,5 +1,6 @@
 const { ProviderAvailability } = require('../models/ProviderAvailability');
 const { DatabaseError, NotFoundError, ConflictError } = require('../utils/errors');
+const { generateTimeSlots } = require('../utils/timezoneUtils');
 
 class ProviderAvailabilityRepository {
   constructor() {
@@ -43,7 +44,7 @@ class ProviderAvailabilityRepository {
    */
   async findById(id) {
     try {
-      const availability = await this.model.findById(id).populate('provider_id', 'first_name last_name email');
+      const availability = await this.model.findById(id).populate('provider_id', 'first_name last_name email specialization years_of_experience rating');
       return availability;
     } catch (error) {
       throw new DatabaseError(`Failed to find availability by ID: ${error.message}`);
@@ -75,7 +76,7 @@ class ProviderAvailabilityRepository {
       }
 
       const availability = await this.model.find(query)
-        .populate('provider_id', 'first_name last_name email')
+        .populate('provider_id', 'first_name last_name email specialization years_of_experience rating')
         .sort({ date: 1, start_time: 1 });
 
       return availability;
@@ -120,7 +121,7 @@ class ProviderAvailabilityRepository {
         id,
         updateData,
         { new: true, runValidators: true }
-      ).populate('provider_id', 'first_name last_name email');
+      ).populate('provider_id', 'first_name last_name email specialization years_of_experience rating');
 
       if (!availability) {
         throw new NotFoundError('Availability not found');
@@ -186,10 +187,12 @@ class ProviderAvailabilityRepository {
   async search(searchCriteria, options = {}) {
     try {
       const {
+        date,
         startDate,
         endDate,
+        specialization,
+        location,
         appointmentType,
-        locationType,
         insuranceAccepted,
         maxPrice,
         timezone,
@@ -198,21 +201,21 @@ class ProviderAvailabilityRepository {
         limit = 50
       } = searchCriteria;
 
-      const { sortBy = 'date', sortOrder = 'asc' } = options;
-
       // Build query
       const query = {};
 
-      if (startDate && endDate) {
+      // Date filtering
+      if (date) {
+        const targetDate = new Date(date);
+        const nextDay = new Date(targetDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        query.date = { $gte: targetDate, $lt: nextDay };
+      } else if (startDate && endDate) {
         query.date = { $gte: new Date(startDate), $lte: new Date(endDate) };
       }
 
       if (appointmentType) {
         query.appointment_type = appointmentType;
-      }
-
-      if (locationType) {
-        query['location.type'] = locationType;
       }
 
       if (insuranceAccepted !== undefined) {
@@ -229,21 +232,36 @@ class ProviderAvailabilityRepository {
 
       if (availableOnly) {
         query.status = 'available';
-        query.current_appointments = { $lt: '$max_appointments_per_slot' };
+        // Fix: Use proper MongoDB aggregation for this comparison
+        query.$expr = {
+          $lt: ['$current_appointments', '$max_appointments_per_slot']
+        };
       }
-
-      // Build sort object
-      const sort = {};
-      sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
       // Execute query with pagination
       const skip = (page - 1) * limit;
       
-      const availability = await this.model.find(query)
-        .populate('provider_id', 'first_name last_name email specialization')
-        .sort(sort)
+      let availability = await this.model.find(query)
+        .populate('provider_id', 'first_name last_name email specialization years_of_experience rating')
+        .sort({ date: 1, start_time: 1 })
         .skip(skip)
         .limit(limit);
+
+      // Filter by specialization if provided
+      if (specialization) {
+        availability = availability.filter(avail => 
+          avail.provider_id.specialization && 
+          avail.provider_id.specialization.toLowerCase().includes(specialization.toLowerCase())
+        );
+      }
+
+      // Filter by location if provided
+      if (location) {
+        availability = availability.filter(avail => 
+          avail.location.address && 
+          avail.location.address.toLowerCase().includes(location.toLowerCase())
+        );
+      }
 
       const total = await this.model.countDocuments(query);
 
@@ -374,27 +392,40 @@ class ProviderAvailabilityRepository {
   async generateRecurringSlots(availabilityData) {
     try {
       const slots = [];
-      const { date, recurrence_pattern, recurrence_end_date } = availabilityData;
+      const { date, recurrence_pattern, recurrence_end_date, slot_duration, break_duration } = availabilityData;
       
       let currentDate = new Date(date);
       const endDate = new Date(recurrence_end_date);
       
       while (currentDate <= endDate) {
-        const slotData = {
-          ...availabilityData,
-          date: new Date(currentDate)
-        };
-        
-        // Check for conflicts
-        const hasConflict = await this.checkForConflicts(
-          slotData.provider_id,
-          slotData.date,
-          slotData.start_time,
-          slotData.end_time
+        // Generate time slots for the current date
+        const timeSlots = generateTimeSlots(
+          availabilityData.start_time,
+          availabilityData.end_time,
+          slot_duration,
+          break_duration
         );
 
-        if (!hasConflict) {
-          slots.push(slotData);
+        // Create availability for each time slot
+        for (const timeSlot of timeSlots) {
+          const slotData = {
+            ...availabilityData,
+            date: new Date(currentDate),
+            start_time: timeSlot.start_time,
+            end_time: timeSlot.end_time
+          };
+
+          // Check for conflicts
+          const hasConflict = await this.checkForConflicts(
+            slotData.provider_id,
+            slotData.date,
+            slotData.start_time,
+            slotData.end_time
+          );
+
+          if (!hasConflict) {
+            slots.push(slotData);
+          }
         }
 
         // Move to next date based on pattern

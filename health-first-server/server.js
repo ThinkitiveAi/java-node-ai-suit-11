@@ -80,13 +80,13 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// API routes
+// API routes - Mount availability routes BEFORE provider routes to prevent conflicts
+app.use('/api/v1/provider/availability', providerAvailabilityRoutes);
+app.use('/api/v1/availability', availabilitySearchRoutes);
 app.use('/api/v1/provider', providerRoutes);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/patient', patientRoutes);
 app.use('/api/v1/patient/auth', patientAuthRoutes);
-app.use('/api/v1/provider/availability', providerAvailabilityRoutes);
-app.use('/api/v1/availability', availabilitySearchRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -125,6 +125,9 @@ async function startServer() {
       console.log(`🚀 Health First Server running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+      console.log(`📋 API Documentation:`);
+      console.log(`   - Provider Availability: http://localhost:${PORT}/api/v1/provider/availability`);
+      console.log(`   - Patient Search: http://localhost:${PORT}/api/v1/availability/search`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

@@ -1,0 +1,463 @@
+{
+	"info": {
+		"_postman_id": "health-first-provider-availability",
+		"name": "Health First - Provider Availability API",
+		"description": "Complete API collection for testing the Provider Availability module in Health First application",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Provider Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"provider@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Provider Availability - Private Endpoints",
+			"item": [
+				{
+					"name": "Create Availability",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2024-02-15\",\n  \"start_time\": \"09:00\",\n  \"end_time\": \"17:00\",\n  \"timezone\": \"America/New_York\",\n  \"slot_duration\": 30,\n  \"break_duration\": 15,\n  \"max_appointments_per_slot\": 1,\n  \"appointment_type\": \"consultation\",\n  \"location\": {\n    \"type\": \"clinic\",\n    \"address\": \"123 Medical Center Dr, Suite 100\",\n    \"room_number\": \"101\"\n  },\n  \"pricing\": {\n    \"base_fee\": 150.00,\n    \"insurance_accepted\": true,\n    \"currency\": \"USD\"\n  },\n  \"special_requirements\": [\n    \"Please arrive 10 minutes early\",\n    \"Bring your insurance card\"\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Availability",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/me?page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"me"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Availability Statistics",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/me/statistics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"me",
+								"statistics"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Availability",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2024-02-15\",\n  \"start_time\": \"10:00\",\n  \"end_time\": \"18:00\",\n  \"timezone\": \"America/New_York\",\n  \"slot_duration\": 45,\n  \"break_duration\": 20,\n  \"max_appointments_per_slot\": 2,\n  \"appointment_type\": \"follow_up\",\n  \"location\": {\n    \"type\": \"telemedicine\",\n    \"address\": \"Virtual consultation\"\n  },\n  \"pricing\": {\n    \"base_fee\": 200.00,\n    \"insurance_accepted\": true,\n    \"currency\": \"USD\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/{{availability_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"{{availability_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Availability",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{access_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/{{availability_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"{{availability_id}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Provider Availability - Public Endpoints",
+			"item": [
+				{
+					"name": "Get Availability by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/{{availability_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"{{availability_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Availability by Provider ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/provider/{{provider_id}}?page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"provider",
+								"{{provider_id}}"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Availability Statistics by Provider ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/{{provider_id}}/statistics",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"{{provider_id}}",
+								"statistics"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Check Slot Availability",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/{{availability_id}}/check?date=2024-02-15&time=10:30",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"{{availability_id}}",
+								"check"
+							],
+							"query": [
+								{
+									"key": "date",
+									"value": "2024-02-15"
+								},
+								{
+									"key": "time",
+									"value": "10:30"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Book Appointment Slot",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"patient_id\": \"{{patient_id}}\",\n  \"appointment_date\": \"2024-02-15\",\n  \"appointment_time\": \"10:30\",\n  \"appointment_type\": \"consultation\",\n  \"patient_notes\": \"First time visit\",\n  \"contact_info\": {\n    \"phone\": \"+1-555-0123\",\n    \"email\": \"patient@example.com\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/{{availability_id}}/book",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"{{availability_id}}",
+								"book"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Appointment Slot",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"appointment_id\": \"{{appointment_id}}\",\n  \"cancellation_reason\": \"Patient requested cancellation\",\n  \"refund_required\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/{{availability_id}}/cancel",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"{{availability_id}}",
+								"cancel"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Availability Data",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2024-02-15\",\n  \"start_time\": \"09:00\",\n  \"end_time\": \"17:00\",\n  \"timezone\": \"America/New_York\",\n  \"slot_duration\": 30,\n  \"break_duration\": 15,\n  \"max_appointments_per_slot\": 1,\n  \"appointment_type\": \"consultation\",\n  \"location\": {\n    \"type\": \"clinic\",\n    \"address\": \"123 Medical Center Dr, Suite 100\"\n  },\n  \"pricing\": {\n    \"base_fee\": 150.00,\n    \"insurance_accepted\": true,\n    \"currency\": \"USD\"\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/provider/availability/validate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"provider",
+								"availability",
+								"validate"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Server Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3000",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "provider_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "availability_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "patient_id",
+			"value": "patient123",
+			"type": "string"
+		},
+		{
+			"key": "appointment_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+} 
